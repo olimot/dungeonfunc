@@ -6,8 +6,12 @@ import torch
 from transformers import PreTrainedTokenizer
 from transformers.generation_utils import GenerationMixin
 
-@functools.lru_cache(maxsize=None)
+
 def count_tokens(tokenizer: PreTrainedTokenizer, text: str) -> int:
+    return memoized_count_tokens(tokenizer, text)
+
+@functools.lru_cache(maxsize=None)
+def memoized_count_tokens(tokenizer: PreTrainedTokenizer, text: str) -> int:
     tokens = tokenizer(text, return_tensors="pt").input_ids.to("cpu")
     return tokens.shape[1]
 
