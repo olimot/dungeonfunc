@@ -5,7 +5,7 @@ from typing import Iterable, List, Tuple
 import torch
 from transformers import PreTrainedTokenizer
 
-from classes import GPTContext, GenerationOptions
+from .classes import GPTContext, GenerationOptions
 
 
 def count_tokens(tokenizer: PreTrainedTokenizer, text: str) -> int:
