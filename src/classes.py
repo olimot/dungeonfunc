@@ -10,7 +10,7 @@ class GPTContext:
     device: str
 
     def __init__(self, model: GenerationMixin, tokenizer: PreTrainedTokenizer, max_position_embeddings: int, device: str):
-        self.model = model
+        self.model = model.to(device)
         self.tokenizer = tokenizer
         self.max_position_embeddings = max_position_embeddings
         self.device = device

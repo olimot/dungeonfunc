@@ -74,8 +74,7 @@ def generate_raw(ctx: GPTContext, options: GenerationOptions, input: str):
 
     max_length = min(ctx.max_position_embeddings,
                      n_ids + options.number_generated_tokens)
-    print(f"Generating: n_ids={n_ids}")
-    
+    print(f"Generating (input token length: {n_ids})...", end="")
     bad_words_ids = collect_bad_words_ids(
         ctx.tokenizer, options.prevent_square_brackets, options.prevent_angle_brackets, options.prevent_curly_brackets)
     torch.cuda.empty_cache()
@@ -95,8 +94,9 @@ def generate_raw(ctx: GPTContext, options: GenerationOptions, input: str):
             use_cache=True,
             bad_words_ids=bad_words_ids,
             pad_token_id=ctx.tokenizer.eos_token_id
-        ).long().to("cpu")[0]        
+        ).to("cpu")[0]
         output = ctx.tokenizer.decode(gen_tokens[n_ids:])
+        print(f"Done (output token length: {len(gen_tokens[n_ids:])})")
         return output
     finally:
         torch.cuda.empty_cache()
