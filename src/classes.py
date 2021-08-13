@@ -9,22 +9,28 @@ class GPTContext:
     max_position_embeddings: int
     device: str
 
-    def __init__(self, ModelType: GenerationMixin, model_name: str, tokenizer_name: str = "", device="cuda:0", half=True):
+    def __init__(self, model: GenerationMixin, tokenizer: PreTrainedTokenizer, max_position_embeddings: int, device: str):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.max_position_embeddings = max_position_embeddings
         self.device = device
+
+    def create(ModelType: GenerationMixin, model_name: str, tokenizer_name: str = "", device="cuda:0", half=True):
         model = ModelType.from_pretrained(model_name)
         if half:
             model = model.half()
-        self.model = model.to(device).eval()
+        model = model.to(device).eval()
         
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name if len(tokenizer_name) else model_name)
         config = AutoConfig.from_pretrained(model_name)
         try:
             # GPT2Config
-            self.max_position_embeddings = config.n_ctx
+            max_position_embeddings = config.n_ctx
         except AttributeError:
             # GPTNeoConfig
-            self.max_position_embeddings = config.max_position_embeddings
+            max_position_embeddings = config.max_position_embeddings
+        return GPTContext(model, tokenizer, max_position_embeddings, device)
 
 
 class GenerationOptions(object):

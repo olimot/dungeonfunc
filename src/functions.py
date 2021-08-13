@@ -54,7 +54,7 @@ def collect_bad_words_ids(tokenizer: PreTrainedTokenizer, prevent_square_bracket
     bad_words_ids = list()
     bad_keys_final = list()
     for key in bad_keys:
-        if key == "</s>" or key in bad_keys_final:
+        if key == tokenizer.eos_token or key in bad_keys_final:
             continue
         bad_id = vocab[key]
         bad_words_ids.append([bad_id])
@@ -72,37 +72,34 @@ def generate_raw(ctx: GPTContext, options: GenerationOptions, input: str):
         n_ids = 1
         input_ids = torch.tensor([[ctx.tokenizer.eos_token_id]])
 
-    max_length = n_ids + options.number_generated_tokens
-    torch.cuda.empty_cache()
+    max_length = min(ctx.max_position_embeddings,
+                     n_ids + options.number_generated_tokens)
+    print(f"Generating: n_ids={n_ids}")
+    
     bad_words_ids = collect_bad_words_ids(
         ctx.tokenizer, options.prevent_square_brackets, options.prevent_angle_brackets, options.prevent_curly_brackets)
-
-    gen_tokens = ctx.model.generate(
-        input_ids.long().to(ctx.device),
-        do_sample=True,
-        min_length=max_length,
-        max_length=max_length,
-        temperature=options.temperature,
-        tfs=options.tfs,
-        top_k=options.top_k,
-        top_p=options.top_p,
-        repetition_penalty=options.repetition_penalty,
-        repetition_penalty_range=options.repetition_penalty_range,
-        repetition_penalty_slope=options.repetition_penalty_slope,
-        use_cache=True,
-        bad_words_ids=bad_words_ids,
-        pad_token_id=ctx.tokenizer.eos_token_id
-    ).long().to("cpu")[0]
     torch.cuda.empty_cache()
-
-    stop_tokens = collect_stop_tokens(ctx.tokenizer)
-    if len(gen_tokens) > n_ids:
-        for i in reversed(range(len(gen_tokens))):
-            if gen_tokens[i] in stop_tokens:
-                gen_tokens = gen_tokens[:i+1]
-                break
-    output = ctx.tokenizer.decode(gen_tokens[n_ids:])
-    return output
+    try:
+        gen_tokens = ctx.model.generate(
+            input_ids.to(ctx.device),
+            do_sample=True,
+            min_length=max_length,
+            max_length=max_length,
+            temperature=options.temperature,
+            tfs=options.tfs,
+            top_k=options.top_k,
+            top_p=options.top_p,
+            repetition_penalty=options.repetition_penalty,
+            repetition_penalty_range=options.repetition_penalty_range,
+            repetition_penalty_slope=options.repetition_penalty_slope,
+            use_cache=True,
+            bad_words_ids=bad_words_ids,
+            pad_token_id=ctx.tokenizer.eos_token_id
+        ).long().to("cpu")[0]        
+        output = ctx.tokenizer.decode(gen_tokens[n_ids:])
+        return output
+    finally:
+        torch.cuda.empty_cache()
 
 
 def truncate_with_budget(tokenizer: PreTrainedTokenizer, text: str, budget: int, prefix="", suffix=""):
